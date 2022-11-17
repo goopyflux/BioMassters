@@ -1,7 +1,7 @@
 [project]
-name = ""
-version = ""
-description = ""
+name = "biomasstry"
+version = "0.0.1"
+description = "Attempt at Driven Data BioMassters Competition."
 authors = [
     {name = "Goopy Flux", email = "goopy.flux@gmail.com"},
 ]

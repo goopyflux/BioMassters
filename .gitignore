@@ -5,3 +5,5 @@ __pypackages__/
 .pdm.toml
 *.pyc
 __pycache__/
+aws/
+awscliv2.zip
