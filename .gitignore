@@ -1,0 +1,7 @@
+.DS_Store
+__pypackages__/
+.vscode/
+.ipynb_checkpoints/
+.pdm.toml
+*.pyc
+__pycache__/
