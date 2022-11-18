@@ -46,6 +46,10 @@ docker-exec:
 git-push:
 	git push -u origin main
 
+## Setup Paperspace Gradient Instance
+paperspace:
+        unzip awscliv2.zip
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################
