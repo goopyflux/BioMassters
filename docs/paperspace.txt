@@ -1,0 +1,22 @@
+Configuring a PyTorch Paperspace Gradient Notebook Instance
+
+- (Re)Install AWS CLI ::
+
+  `unzip awscliv2.zip`
+  `./aws/install`
+
+- Run `aws configure`
+
+- Install additional packages ::
+
+  pip install torchdata fsspec s3fs rasterio
+
+
+For cURL error 77 problem with SSL CA Certificates ::
+
+  run `update-ca-certificates` from the command line
+
+For cURL error 28 request timed out to S3 bucket ::
+
+Seems like all the cURL errors were due to using functions specific to S3. Using FSSpec functions worked and had no issues.
+
