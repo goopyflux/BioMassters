@@ -7,3 +7,4 @@ __pypackages__/
 __pycache__/
 aws/
 awscliv2.zip
+.gradient/
