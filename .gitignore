@@ -8,3 +8,4 @@ __pycache__/
 aws/
 awscliv2.zip
 .gradient/
+artifacts/
