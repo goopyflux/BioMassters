@@ -24,9 +24,9 @@ test_features_dir = S3_DATASOURCE / "test_features"
 def load_raster(file_url: str) -> Tensor:
     """Returns the file URL and data as tensor."""
     # this is for local testing only ---
-    S2_IMG_DIM = (11, 256, 256)
-    if not os.path.exists(file_url):
-        array = np.random.randn(S2_IMG_DIM)
+    # S2_IMG_DIM = (11, 256, 256)
+    # if not os.path.exists(file_url):
+        # array = np.random.randn(S2_IMG_DIM)
     # --- end local test ---
     with rasterio.open(file_url) as f:
         array = f.read()
@@ -78,9 +78,9 @@ class SingleImageDataset(Dataset):
         self.train = train
 
         if train:
-            self.chip_ids = self.metadata_df[self.metadata_df.split == "train"].chip_ids.unique()
+            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
         else:
-            self.chip_ids = self.metadata_df[self.metadata_df.split == "test"].chip_ids.unique()
+            self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
 
     def __len__(self):
         """Return the length of the dataset."""
@@ -94,9 +94,7 @@ class SingleImageDataset(Dataset):
         else:
             img_dir = test_features_dir
 
-        img_path = os.path.join(img_dir,
-            self.chip_ids[idx],
-            f"_{self.satellite}_{self.month_id}.tif")
+        img_path = img_dir / f"{self.chip_ids[idx]}_{self.satellite}_{self.month_id}.tif"
 
         img_data = load_raster(img_path)[:10]  # only first 10 channels, leave out cloud coverage channel
 
@@ -106,9 +104,7 @@ class SingleImageDataset(Dataset):
         # Target image
         target_data = None
         if self.train:
-            target_path = os.path.join(train_agbm_dir,
-                self.chip_ids[idx],
-                "_agbm.tif")
+            target_path = train_agbm_dir / f"{self.chip_ids[idx]}_agbm.tif"
             target_data = load_raster(target_path)
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)
