@@ -8,6 +8,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import rasterio
 from rasterio.io import MemoryFile
 import s3fs
 import torch
@@ -16,6 +17,26 @@ from torch.utils.data import Dataset, DataLoader
 
 # Our rasters contain no geolocation info, so silence this warning from rasterio
 warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
+
+def load_raster(file_url: str) -> Tensor:
+    """Returns the data as tensor."""
+    # this is for local testing only ---
+    # S2_IMG_DIM = (11, 256, 256)
+    # if not os.path.exists(file_url):
+        # array = np.random.randn(S2_IMG_DIM)
+    # --- end local test ---
+    storage_options = {'anon': True}
+    s3_fs = s3fs.S3FileSystem(**storage_options)
+
+    with s3_fs.open(file_url) as f:
+        raw_bytes = f.read()
+        # Save bytes to array
+        with MemoryFile(raw_bytes) as memfile:
+            with memfile.open() as buffer:
+                array = buffer.read()
+                if array.dtype == np.uint16:
+                    array = array.astype(np.int32)
+    return torch.from_numpy(array)
 
 class Sentinel2(Dataset):
     """Sentinel-2 Dataset.
@@ -76,9 +97,10 @@ class Sentinel2(Dataset):
     train_features_dir = S3_URL + "/train_features"
     train_agbm_dir = S3_URL + "/train_agbm"
     test_features_dir = S3_URL + "/test_features"
-
+    metadata_file = "/notebooks/data/metadata_parquet/features_metadata_slim.parquet"
+    
     def __init__(self, 
-        metadata_file: str = "/notebooks/data/metadata_parquet/feature_metadata_slim.parquet",
+        metadata_file: str = None,
         bands: Sequence[str] = [], 
         month: str ="april",
         train: bool = True, 
@@ -88,6 +110,13 @@ class Sentinel2(Dataset):
         """ Initialize a new instance of the Sentinel-2 Dataset.
         Args:
         """
+        if metadata_file is None:
+            metadata_file = self.metadata_file
+        if not os.path.exists(metadata_file):
+            raise FileNotFoundError(f"File {metadata_file} not found! "
+                                    "Please check the path and make sure the file exists."
+                                   )
+
         self.bands = bands if bands else self.all_bands
 
         if metadata_file.endswith(".parquet"):
@@ -108,8 +137,6 @@ class Sentinel2(Dataset):
             self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
         else:
             self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
-        storage_options = {'anon': True}
-        self.s3_fs = s3fs.S3FileSystem(**storage_options)
 
     def __len__(self):
         """Return the length of the dataset."""
@@ -125,7 +152,7 @@ class Sentinel2(Dataset):
 
         img_path = img_dir + f"/{self.chip_ids[idx]}_S2_{self.month_id}.tif"
 
-        img_data = self.load_raster(img_path)[:10]  # only first 10 channels, leave out cloud coverage channel
+        img_data = load_raster(img_path)[:10]  # only first 10 channels, leave out cloud coverage channel
 
         if self.transform is not None:
             img_data = self.transform(img_data)
@@ -134,30 +161,13 @@ class Sentinel2(Dataset):
         target_data = None
         if self.train:
             target_path = self.train_agbm_dir + f"/{self.chip_ids[idx]}_agbm.tif"
-            target_data = self.load_raster(target_path)
+            target_data = load_raster(target_path)
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)
 
         return {'image': img_data,
             'target': target_data,
             'chip_id': self.chip_ids[idx]}
-
-    def _load_raster(self, file_url: str) -> Tensor:
-        """Returns the file URL and data as tensor."""
-        # this is for local testing only ---
-        # S2_IMG_DIM = (11, 256, 256)
-        # if not os.path.exists(file_url):
-            # array = np.random.randn(S2_IMG_DIM)
-        # --- end local test ---
-        with self.s3_fs.open(file_url) as f:
-            raw_bytes = f.read()
-            # Save bytes to array
-            with MemoryFile(raw_bytes) as memfile:
-                with memfile.open() as buffer:
-                    array = buffer.read()
-                    if array.dtype == np.uint16:
-                        array = array.astype(np.int32)
-        return torch.from_numpy(array)
 
     def plot(
         self,
