@@ -7,6 +7,13 @@ What does each image look like? How are the different channels, bands represente
 How does each input pixel map to the AGBM ground truth value?
 How are the images split between the satellites (S1 and S2)?
 
+Dataset
+=======
+
+Create Sentinel-2 metadata file
+Update metadata file path
+Support band selection
+Support plotting a sample input and output image from the dataset
 
 Steps
 =====
