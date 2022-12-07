@@ -5,18 +5,20 @@ from pathlib import Path
 from typing import Sequence, Optional, Callable, Dict, Any
 import warnings
 
+import fsspec
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.io import MemoryFile
-import s3fs
+import fsspec
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
 # Our rasters contain no geolocation info, so silence this warning from rasterio
 warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
+
 
 def load_raster(file_url: str) -> Tensor:
     """Returns the data as tensor."""
@@ -26,9 +28,7 @@ def load_raster(file_url: str) -> Tensor:
         # array = np.random.randn(S2_IMG_DIM)
     # --- end local test ---
     storage_options = {'anon': True}
-    s3_fs = s3fs.S3FileSystem(**storage_options)
-
-    with s3_fs.open(file_url) as f:
+    with fsspec.open(file_url, **storage_options).open() as f:
         raw_bytes = f.read()
         # Save bytes to array
         with MemoryFile(raw_bytes) as memfile:
@@ -37,6 +37,7 @@ def load_raster(file_url: str) -> Tensor:
                 if array.dtype == np.uint16:
                     array = array.astype(np.int32)
     return torch.from_numpy(array)
+
 
 class Sentinel2(Dataset):
     """Sentinel-2 Dataset.
