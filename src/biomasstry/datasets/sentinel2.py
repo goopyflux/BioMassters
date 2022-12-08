@@ -35,8 +35,8 @@ def load_raster(file_url: str) -> Tensor:
             with memfile.open() as buffer:
                 array = buffer.read()
                 if array.dtype == np.uint16:
-                    array = array.astype(np.int32)
-    return torch.from_numpy(array)
+                    array = array.astype(np.float)
+    return torch.tensor(array, dtype=torch.float32)
 
 
 class Sentinel2(Dataset):
@@ -94,7 +94,8 @@ class Sentinel2(Dataset):
     }
 
     # Setup S3 URLs and folder locations within the S3 bucket
-    S3_URL = "s3://drivendata-competition-biomassters-public-us"
+    # S3_URL = "s3://drivendata-competition-biomassters-public-us"
+    S3_URL = "/datasets/biomassters"
     train_features_dir = S3_URL + "/train_features"
     train_agbm_dir = S3_URL + "/train_agbm"
     test_features_dir = S3_URL + "/test_features"
