@@ -1,45 +1,85 @@
+"""Script for training the model."""
 
+import os
 from pathlib import Path
+from time import time
 
 from biomasstry.datasets import Sentinel2
-from biomasstry.models import Sentinel2Model
-from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import WandbLogger
+from biomasstry.models import FCN
+from biomasstry.models.utils import run_training
+import numpy as np
+import pandas as pd
+import seaborn as sns
 import segmentation_models_pytorch as smp
 import torch
-from torch.utils.data import DataLoader
-import wandb
+import torch.nn as nn
+from torch.utils.data import DataLoader, random_split
+from tqdm.notebook import tqdm
 
+sns.set()
 
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+print(f"Device: {device}")
 
-METADATA_FILE = Path(".").resolve().parent / "data/metadata_parquet/features_metadata_slim.parquet"
-MODEL_PATH = Path(".").resolve().parent / "artifacts/resnet50-sentinel2.pt"
+# Train Dataset
+sentinel2_dataset = Sentinel2()
+torch.manual_seed(0)
+train_size = int(0.8*len(sentinel2_dataset))
+valid_size = len(sentinel2_dataset) - train_size
+train_set, val_set = random_split(sentinel2_dataset, [train_size, valid_size])
+print(f"Train samples: {len(train_set)} "
+      f"Val. samples: {len(val_set)}")
 
-train_dataset = Sentinel2(METADATA_FILE)
-train_size = int(0.8*len(train_dataset))
-valid_size = len(train_dataset) - train_size
-train_set, val_set = torch.utils.data.random_split(train_dataset, [train_size, valid_size])
-train_dataloader = DataLoader(train_set, batch_size=32, shuffle=True, num_workers = 6)
-valid_dataloader = DataLoader(val_set, batch_size=32, shuffle=False, num_workers = 6)
+# Model
+in_channels = train_set[0].shape[0]
+model = FCN(in_channels=in_channels,
+    classes=1).to(device)
 
-test_dataset = Sentinel2(METADATA_FILE, train=False)
-test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers = 6)
+loss_module = nn.MSELoss(reduction='mean')
+optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
 
-base_model = smp.Unet(
-    encoder_name="resnet50",       
-    in_channels=10,                 
-    classes=1,                     
-)
+# Model Training
+artifacts_dir = "../artifacts"
+batch_size = 64
+num_workers = 6
+# DataLoaders
+train_dataloader = DataLoader(train_set,
+                            batch_size=batch_size,
+                            shuffle=True,
+                            num_workers=num_workers,
+                            pin_memory=True
+                            )
 
-base_model.encoder.load_state_dict(torch.load())
-s2_model = Sentinel2Model(base_model)
-wandb_logger = WandbLogger(name='Sentinel_2_ResNet50', project='BioMassters_baseline')
+val_dataloader = DataLoader(val_set,
+                            batch_size=batch_size,
+                            shuffle=False,
+                            num_workers=num_workers,
+                            pin_memory=True
+                        )
 
-trainer = Trainer(
-    accelerator="gpu",
-    max_epochs=20,
-    logger=[wandb_logger],
-)
+save_file = "FCN_10bandS2Apr_batch_AGBMLinear_10epoch_10DEC.pt"
+save_path = os.path.join(artifacts_dir, save_file)
 
-# Train the model ⚡
-trainer.fit(s2_model, train_dataloaders=train_dataloader, val_dataloaders=valid_dataloader)
+# Kickoff training
+n_epochs = 10
+# start = time()
+metrics = run_training(model=model,
+                    loss_module=loss_module,
+                    optimizer=optimizer,
+                    train_dataloader=train_dataloader,
+                    val_dataloader=val_dataloader,
+                    save_path=save_path,
+                    n_epochs=n_epochs)
+
+# Save the metrics to a file
+train_metrics_df = pd.DataFrame(metrics['training'], columns=["step", "score"])
+val_metrics_df = pd.DataFrame(metrics["validation"], columns=["step", "score"])
+train_metrics_df.to_csv(artifacts_dir + "/train_metrics.csv")
+val_metrics_df.to_csv(artifacts_dir + "/val_metrics.csv")
+
+# Test Dataset
+# test_dataset = Sentinel2(train=False)
+# test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers = 6)
