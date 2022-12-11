@@ -14,7 +14,7 @@ import segmentation_models_pytorch as smp
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from tqdm.notebook import tqdm
+
 
 sns.set()
 
@@ -34,7 +34,7 @@ print(f"Train samples: {len(train_set)} "
       f"Val. samples: {len(val_set)}")
 
 # Model
-in_channels = train_set[0].shape[0]
+in_channels = train_set[0]['image'].shape[0]
 model = FCN(in_channels=in_channels,
     classes=1).to(device)
 
@@ -42,9 +42,9 @@ loss_module = nn.MSELoss(reduction='mean')
 optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
 
 # Model Training
-artifacts_dir = "../artifacts"
+artifacts_dir = "/notebooks/artifacts"
 batch_size = 64
-num_workers = 6
+num_workers = 4
 # DataLoaders
 train_dataloader = DataLoader(train_set,
                             batch_size=batch_size,
@@ -60,8 +60,7 @@ val_dataloader = DataLoader(val_set,
                             pin_memory=True
                         )
 
-save_file = "FCN_10bandS2Apr_batch_AGBMLinear_10epoch_10DEC.pt"
-save_path = os.path.join(artifacts_dir, save_file)
+save_path = artifacts_dir + "/FCN_10bandS2Apr_batch_AGBMLinear_10epoch_10DEC.pt"
 
 # Kickoff training
 n_epochs = 10

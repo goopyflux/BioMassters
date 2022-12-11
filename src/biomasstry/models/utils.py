@@ -4,7 +4,7 @@ from time import time
 
 import numpy as np
 import torch
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 if torch.cuda.is_available():
     device = torch.device('cuda')
