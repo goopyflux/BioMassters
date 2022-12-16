@@ -96,7 +96,7 @@ class Sentinel2(Dataset):
     # Setup S3 URLs and folder locations within the S3 bucket
     # S3_URL = "s3://drivendata-competition-biomassters-public-us"
     S3_URL = "/datasets/biomassters"
-    metadata_file = "/project/data/metadata_parquet/features_metadata_slim.parquet"
+    metadata_file = "/notebooks/data/metadata_parquet/features_metadata_slim.parquet"
     
     def __init__(self, 
         metadata_file: str = "",
@@ -116,20 +116,23 @@ class Sentinel2(Dataset):
             raise FileNotFoundError(f"File {metadata_file} not found! "
                                     "Please check the path and make sure the file exists."
                                    )
-
-        self.data_url = data_url
-        self.train = train
         # Data URL resolution
-        if not self.data_url:
-            self.data_url = self.S3_URL
+        if not data_url:
+            data_url = self.S3_URL
+        
+        self.bands = bands if bands else self.all_bands
+        self.month = month
+        self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        
         if self.train:
-            self.feaures_dir = self.data_url + "/train_features"
-            self.targets_dir = self.data_url + "/train_agbm"
+            self.features_dir = data_url + "/train_features"
+            self.targets_dir = data_url + "/train_agbm"
         else:
-            self.feaures_dir = self.data_url + "/test_features"
+            self.features_dir = data_url + "/test_features"
             self.targets_dir = ""
 
-        self.bands = bands if bands else self.all_bands
 
         if metadata_file.endswith(".parquet"):
             metadata_df = pd.read_parquet(metadata_file)
@@ -139,12 +142,9 @@ class Sentinel2(Dataset):
             raise Exception(f"Unsupported format for metadata file: {metadata_file}. "
                   "Only CSV and Parquet format files are supported.")
 
-        self.month = month
-        self.transform = transform
-        self.target_transform = target_transform
         self.month_id = self.month_map[month]
 
-        if train:
+        if self.train:
             self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
         else:
             self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
@@ -156,7 +156,7 @@ class Sentinel2(Dataset):
     def __getitem__(self, idx):
         """Return a single (image, label) corresponding to idx."""
         # Input image
-        img_path = self.feaures_dir + f"/{self.chip_ids[idx]}_S2_{self.month_id}.tif"
+        img_path = self.features_dir + f"/{self.chip_ids[idx]}_S2_{self.month_id}.tif"
         img_data = load_raster(img_path)[:10]  # only first 10 channels, leave out cloud coverage channel
 
         if self.transform is not None:
@@ -164,7 +164,7 @@ class Sentinel2(Dataset):
 
         # Target image
         target_data = None
-        if not self.targets_dir:
+        if self.train:
             target_path = self.targets_dir + f"/{self.chip_ids[idx]}_agbm.tif"
             target_data = load_raster(target_path)
             if self.target_transform is not None:
