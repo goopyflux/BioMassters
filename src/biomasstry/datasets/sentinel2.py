@@ -96,13 +96,11 @@ class Sentinel2(Dataset):
     # Setup S3 URLs and folder locations within the S3 bucket
     # S3_URL = "s3://drivendata-competition-biomassters-public-us"
     S3_URL = "/datasets/biomassters"
-    train_features_dir = S3_URL + "/train_features"
-    train_agbm_dir = S3_URL + "/train_agbm"
-    test_features_dir = S3_URL + "/test_features"
-    metadata_file = "/notebooks/data/metadata_parquet/features_metadata_slim.parquet"
+    metadata_file = "/project/data/metadata_parquet/features_metadata_slim.parquet"
     
     def __init__(self, 
-        metadata_file: str = None,
+        metadata_file: str = "",
+        data_url: str = "",
         bands: Sequence[str] = [], 
         month: str ="april",
         train: bool = True, 
@@ -112,12 +110,24 @@ class Sentinel2(Dataset):
         """ Initialize a new instance of the Sentinel-2 Dataset.
         Args:
         """
-        if metadata_file is None:
+        if not metadata_file:
             metadata_file = self.metadata_file
         if not os.path.exists(metadata_file):
             raise FileNotFoundError(f"File {metadata_file} not found! "
                                     "Please check the path and make sure the file exists."
                                    )
+
+        self.data_url = data_url
+        self.train = train
+        # Data URL resolution
+        if not self.data_url:
+            self.data_url = self.S3_URL
+        if self.train:
+            self.feaures_dir = self.data_url + "/train_features"
+            self.targets_dir = self.data_url + "/train_agbm"
+        else:
+            self.feaures_dir = self.data_url + "/test_features"
+            self.targets_dir = ""
 
         self.bands = bands if bands else self.all_bands
 
@@ -133,7 +143,6 @@ class Sentinel2(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.month_id = self.month_map[month]
-        self.train = train
 
         if train:
             self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
@@ -147,13 +156,7 @@ class Sentinel2(Dataset):
     def __getitem__(self, idx):
         """Return a single (image, label) corresponding to idx."""
         # Input image
-        if self.train:
-            img_dir = self.train_features_dir
-        else:
-            img_dir = self.test_features_dir
-
-        img_path = img_dir + f"/{self.chip_ids[idx]}_S2_{self.month_id}.tif"
-
+        img_path = self.feaures_dir + f"/{self.chip_ids[idx]}_S2_{self.month_id}.tif"
         img_data = load_raster(img_path)[:10]  # only first 10 channels, leave out cloud coverage channel
 
         if self.transform is not None:
@@ -161,8 +164,8 @@ class Sentinel2(Dataset):
 
         # Target image
         target_data = None
-        if self.train:
-            target_path = self.train_agbm_dir + f"/{self.chip_ids[idx]}_agbm.tif"
+        if not self.targets_dir:
+            target_path = self.targets_dir + f"/{self.chip_ids[idx]}_agbm.tif"
             target_data = load_raster(target_path)
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)

@@ -8,13 +8,13 @@
 
 # Note: Update the image tag if the Dockerfile changes
 # Local Image
-image_name = puppydog
-image_tag = latest
+image_name = gradient-fastai-aws
+image_tag = dev-local
 local_image = ${image_name}:${image_tag}
 
 # Remote Repository on Docker Hub
-docker_hub_repo = goopyflux/puppydog
-remote_image = ${docker_hub_repo}:${image_tag}
+docker_hub_repo = goopyflux
+remote_image = ${docker_hub_repo}/${image_name}:${image_tag}
 
 python_version = 3.9.13
 dockerfile = Dockerfile
@@ -32,7 +32,7 @@ container_name = biomasstery
 ## Run the JupyterLab Docker container. Use host_volume to specify local folder.
 ## (Ex. make docker-run host_volume=/home/user/work)
 docker-run:
-	docker run -it --init -p 8888:8888 -v "${host_volume}:/root/work" --name ${container_name} ${local_image}
+	docker run -it --init -p 8888:8888 -v "${host_volume}:/project" --name ${container_name} ${local_image}
 
 ## Start an existing container
 docker-start:
@@ -41,14 +41,6 @@ docker-start:
 ## Open a bash shell on a running container
 docker-exec:
 	docker exec -it ${container_name} /bin/bash
-
-## Push the latest commits to remote GitHub repo (assumed to be setup).
-git-push:
-	git push -u origin main
-
-## Setup Paperspace Gradient Instance
-paperspace:
-        unzip awscliv2.zip
 
 #################################################################################
 # Self Documenting Commands                                                     #
