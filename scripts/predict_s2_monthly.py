@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 from tqdm import tqdm
 
-ROOT_DIR = Path("/project")
+ROOT_DIR = Path("/notebooks")
 MODELS_DIR = ROOT_DIR / "artifacts"
 PREDICTIONS_DIR = ROOT_DIR / "data/S2_Monthly_AGBM"
 # S3_URL = "s3://drivendata-competition-biomassters-public-us"
@@ -54,6 +54,7 @@ def get_dataloader(month):
     num_workers = 6
     sen2dl = DataLoader(sen2dataset,
         batch_size=batch_size,
+        shuffle=False,
         num_workers=num_workers,
         pin_memory=True)
 
@@ -76,7 +77,7 @@ def save_prediction(month, dl, model):
 
 
 def main():
-    months = {"april", "may", "june", "july", "august"}
+    months = {"april", "may", "june", "july"}  # , "august"}
     print("Saving monthly predictions...")
     for month in tqdm(months):
         print(f"Month: {month}")
