@@ -18,11 +18,11 @@ def train_loop(dataloader, model, loss_fn, optimizer):
     
     print('Training')
     for ix, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-        X = batch['image'].to(device)
-        y = batch['target'].to(device)
+        X = batch['image']  # .to(device)
+        y = batch['target']  # .to(device)
         
         pred = model(X)
-        loss = loss_fn(pred, y)
+        loss = loss_fn(pred.squeeze(dim=0), y)
 
         # Backpropagation
         optimizer.zero_grad()
@@ -41,11 +41,11 @@ def valid_loop(dataloader, model, loss_fn):
     print('Validation')
     with torch.no_grad():
         for batch in tqdm(dataloader, total=num_batches):
-            X = batch['image'].to(device)
-            y = batch['target'].to(device)
+            X = batch['image']  # .to(device)
+            y = batch['target']  # .to(device)
             
             pred = model(X)
-            valid_loss += loss_fn(pred, y).item()
+            valid_loss += loss_fn(pred.squeeze(dim=0), y).item()
             
     valid_loss /= num_batches
     valid_rmse = np.round(np.sqrt(valid_loss), 5)

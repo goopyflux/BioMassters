@@ -34,16 +34,14 @@ print(f"Train samples: {len(train_set)} "
       f"Val. samples: {len(val_set)}")
 
 # Model
-in_channels = train_set[0]['image'].shape[0]
-model = TemporalSentinel2Model(device=device,
-    input_nc=in_channels,
-    classes=1)  # .to(device)
+model = TemporalSentinel2Model(n_samples=5,
+    output_nc=1)  # .to(device)
 
 loss_module = nn.MSELoss(reduction='mean')
 optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
 
 # DataLoaders
-batch_size = 64
+batch_size = 32
 num_workers = 4
 train_dataloader = DataLoader(train_set,
                             batch_size=batch_size,
@@ -63,7 +61,7 @@ val_dataloader = DataLoader(val_set,
 artifacts_dir = "/notebooks/artifacts"
 model_name = "TemporalS2"
 n_epochs = 1
-date = "20221220"
+date = "20221230"
 save_path = artifacts_dir + f"/{date}_{model_name}_B{batch_size}_E{n_epochs}.pt"
 
 # Kickoff training

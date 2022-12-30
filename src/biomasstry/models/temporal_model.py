@@ -6,7 +6,7 @@ import torch.nn as nn
 
 class TemporalSentinel2Model(nn.Module):
     """Class that implements the full end-to-end model."""
-    def __init__(self, n_samples, output_nc, ngf=64, use_dropout=False, n_blocks=6, padding_type='reflect', opt=None):
+    def __init__(self, n_samples, output_nc, ngf=64, use_dropout=False, n_blocks=6, padding_type='zero', opt=None):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -30,7 +30,7 @@ class TemporalSentinel2Model(nn.Module):
         for i in range(4):
             model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='none', use_bias=True, res_scale=0.1)]
 
-        model_final += [ReflectionPad3D(0, 1)]
+        # model_final += [ReflectionPad3D(0, 1)]
         model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_samples, 3, 3), padding=0)]
 
         model_final += [nn.Tanh()]
@@ -44,7 +44,7 @@ class TemporalSentinel2Model(nn.Module):
         initial_output = []
         for each in input:
             initial_output.append(self.model_initial(each))
-        x = torch.stack(initial_output, dim=1)
+        x = torch.stack(initial_output, dim=2)
         output = self.model_final(x)
         return output.squeeze(0).transpose(0, 1)
 

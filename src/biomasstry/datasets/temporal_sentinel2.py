@@ -98,7 +98,7 @@ class TemporalSentinel2Dataset(Dataset):
     # Setup S3 URLs and folder locations within the S3 bucket
     # S3_URL = "s3://drivendata-competition-biomassters-public-us"
     S3_URL = "/datasets/biomassters"
-    metadata_file = "/project/data/metadata_parquet/features_metadata_slim.parquet"
+    metadata_file = "/notebooks/data/metadata_parquet/features_metadata_slim.parquet"
     
     def __init__(self, 
         metadata_file: str = "",
@@ -166,7 +166,7 @@ class TemporalSentinel2Dataset(Dataset):
 
         # Target image
         target_data = None
-        if not self.targets_dir:
+        if self.train:
             target_path = self.targets_dir + f"/{self.chip_ids[idx]}_agbm.tif"
             target_data = load_raster(target_path)
             if self.target_transform is not None:
