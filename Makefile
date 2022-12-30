@@ -32,7 +32,7 @@ container_name = biomasstery
 ## Run the JupyterLab Docker container. Use host_volume to specify local folder.
 ## (Ex. make docker-run host_volume=/home/user/work)
 docker-run:
-	docker run -it --init -p 8888:8888 -v "${host_volume}:/project" --name ${container_name} ${local_image}
+	docker run -it --init -p 8888:8888 -v "${host_volume}:/notebooks" --name ${container_name} ${local_image}
 
 ## Start an existing container
 docker-start:
