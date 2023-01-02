@@ -31,7 +31,7 @@ class TemporalSentinel2Model(nn.Module):
             model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='none', use_bias=True, res_scale=0.1)]
 
         # model_final += [ReflectionPad3D(0, 1)]
-        model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_samples, 3, 3), padding=0)]
+        model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_samples, 3, 3), padding=(0, 1, 1))]
 
         model_final += [nn.Tanh()]
 
@@ -46,7 +46,7 @@ class TemporalSentinel2Model(nn.Module):
             initial_output.append(self.model_initial(each))
         x = torch.stack(initial_output, dim=2)
         output = self.model_final(x)
-        return output.squeeze(0).transpose(0, 1)
+        return output.transpose(0, 1).squeeze(0)
 
 class ReflectionPad3D(nn.Module):
     def __init__(self, pad_D, pad_HW):
@@ -152,7 +152,7 @@ class StackedResnet2D(nn.Module):
         self.kernel_size = 3
         self.padding_size= 1
         self.scale_res   = 0.1
-        self.dropout     = False
+        self.dropout     = True
         self.use_64C     = False # rather removing these layers in networks_branched.py
         self.use_SAR     = False if not opt else opt.include_S1
         self.use_long	 = False

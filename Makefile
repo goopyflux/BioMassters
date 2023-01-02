@@ -42,6 +42,11 @@ docker-start:
 docker-exec:
 	docker exec -it ${container_name} /bin/bash
 
+## Setup Paperspace Gradient Notebook
+setup-gradient:
+	pip install --upgrade s3fs rasterio && \
+	pip install -e .
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################

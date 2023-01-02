@@ -144,7 +144,7 @@ class TemporalSentinel2Dataset(Dataset):
         self.months = months if months else self.temporal_months
         self.transform = transform
         self.target_transform = target_transform
-
+        
         if train:
             self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
         else:

@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-if torch.cuda.is_available():
-    device = torch.device('cuda')
-else:
-    device = torch.device('cpu')
-print(device)
+# if torch.cuda.is_available():
+    # device = torch.device('cuda')
+# else:
+    # device = torch.device('cpu')
+# print(device)
 
 # Train and Validation Loops
 def train_loop(dataloader, model, loss_fn, optimizer):
@@ -22,7 +22,7 @@ def train_loop(dataloader, model, loss_fn, optimizer):
         y = batch['target']  # .to(device)
         
         pred = model(X)
-        loss = loss_fn(pred.squeeze(dim=0), y)
+        loss = loss_fn(pred, y)
 
         # Backpropagation
         optimizer.zero_grad()
@@ -45,7 +45,7 @@ def valid_loop(dataloader, model, loss_fn):
             y = batch['target']  # .to(device)
             
             pred = model(X)
-            valid_loss += loss_fn(pred.squeeze(dim=0), y).item()
+            valid_loss += loss_fn(pred, y).item()
             
     valid_loss /= num_batches
     valid_rmse = np.round(np.sqrt(valid_loss), 5)
