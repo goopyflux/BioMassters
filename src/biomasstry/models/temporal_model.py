@@ -33,7 +33,7 @@ class TemporalSentinel2Model(nn.Module):
         # model_final += [ReflectionPad3D(0, 1)]
         model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_samples, 3, 3), padding=(0, 1, 1))]
 
-        model_final += [nn.Tanh()]
+        model_final += [nn.Identity()]
 
         self.model_initial = model_initial
         self.model_final = nn.Sequential(*model_final)
