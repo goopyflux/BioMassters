@@ -146,7 +146,7 @@ class TemporalSentinel2Dataset(Dataset):
         self.target_transform = target_transform
         
         if train:
-            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()[:1000]
+            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
         else:
             self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
 
