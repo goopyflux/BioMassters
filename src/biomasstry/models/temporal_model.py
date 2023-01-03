@@ -24,11 +24,11 @@ class TemporalSentinel2Model(nn.Module):
         assert n_samples >= 3
 
         model_initial = StackedResnet2D(opt=opt)
-        self.n_channels = 16 if not opt else opt.resnet_F
+        self.n_channels = 64 if not opt else opt.resnet_F
 
         model_final = [nn.Conv3d(10, self.n_channels, kernel_size=(3, 3, 3), padding=1, bias=True), nn.ReLU(True)]
         for i in range(4):
-            model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='none', use_bias=True, res_scale=0.1)]
+            model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='BatchNorm3D', use_bias=True, res_scale=0.1)]
 
         # model_final += [ReflectionPad3D(0, 1)]
         model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_samples, 3, 3), padding=(0, 1, 1))]
@@ -147,8 +147,8 @@ class StackedResnet2D(nn.Module):
         super(StackedResnet2D, self).__init__()
         
         # architecture parameters
-        self.F           = 16 if not opt else opt.resnet_F
-        self.B           = 4 if not opt else opt.resnet_B
+        self.F           = 64 if not opt else opt.resnet_F
+        self.B           = 8 if not opt else opt.resnet_B
         self.kernel_size = 3
         self.padding_size= 1
         self.scale_res   = 0.1
