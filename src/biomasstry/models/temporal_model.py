@@ -29,7 +29,7 @@ class TemporalSentinelModel(nn.Module):
 
         model_final = [nn.Conv3d(self.input_nc, self.n_channels, kernel_size=(3, 3, 3), padding=1, bias=True), nn.ReLU(True)]
         for i in range(4):
-            model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='BatchNorm3D', use_bias=True, res_scale=0.1)]
+            model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='none', use_bias=True, res_scale=0.1)]
 
         # model_final += [ReflectionPad3D(0, 1)]
         model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_tsamples, 3, 3), padding=(0, 1, 1))]

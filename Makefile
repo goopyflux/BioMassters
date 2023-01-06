@@ -45,6 +45,7 @@ docker-exec:
 ## Setup Paperspace Gradient Notebook
 setup-gradient:
 	pip install --upgrade s3fs rasterio && \
+	pip install --upgrade transformers accelerate nvidia-ml-py3 && \
 	pip install -e .
 
 #################################################################################
