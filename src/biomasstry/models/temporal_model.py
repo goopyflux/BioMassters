@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 
 
-class TemporalSentinel2Model(nn.Module):
+class TemporalSentinelModel(nn.Module):
     """Class that implements the full end-to-end model."""
-    def __init__(self, n_samples, output_nc, ngf=64, use_dropout=False, n_blocks=6, padding_type='zero', opt=None):
+    def __init__(self, n_tsamples, input_nc, output_nc, ngf=64, use_dropout=False, n_blocks=6, padding_type='zero', opt=None):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -19,25 +19,26 @@ class TemporalSentinel2Model(nn.Module):
             padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
         """
         assert(n_blocks >= 0)
-        super(TemporalSentinel2Model, self).__init__()
+        super(TemporalSentinelModel, self).__init__()
 
-        assert n_samples >= 3
+        assert n_tsamples >= 3
+        self.input_nc = input_nc
 
-        model_initial = StackedResnet2D(opt=opt)
+        model_initial = StackedResnet2D(opt=opt, input_nc=self.input_nc)
         self.n_channels = 64 if not opt else opt.resnet_F
 
-        model_final = [nn.Conv3d(10, self.n_channels, kernel_size=(3, 3, 3), padding=1, bias=True), nn.ReLU(True)]
+        model_final = [nn.Conv3d(self.input_nc, self.n_channels, kernel_size=(3, 3, 3), padding=1, bias=True), nn.ReLU(True)]
         for i in range(4):
             model_final += [ResnetBlock3D(self.n_channels, padding_type=padding_type, norm_layer='BatchNorm3D', use_bias=True, res_scale=0.1)]
 
         # model_final += [ReflectionPad3D(0, 1)]
-        model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_samples, 3, 3), padding=(0, 1, 1))]
+        model_final += [nn.Conv3d(self.n_channels, output_nc, kernel_size=(n_tsamples, 3, 3), padding=(0, 1, 1))]
 
         model_final += [nn.Identity()]
 
         self.model_initial = model_initial
         self.model_final = nn.Sequential(*model_final)
-        self.n_samples = n_samples
+        self.n_tsamples = n_tsamples
 
     def forward(self, input):
         """Standard forward"""
@@ -143,7 +144,7 @@ class ResnetBlock3D(nn.Module):
 
 
 class StackedResnet2D(nn.Module):
-    def __init__(self, opt=None):
+    def __init__(self, input_nc, opt=None):
         super(StackedResnet2D, self).__init__()
         
         # architecture parameters
@@ -157,7 +158,7 @@ class StackedResnet2D(nn.Module):
         self.use_SAR     = False if not opt else opt.include_S1
         self.use_long	 = False
 
-        model = [nn.Conv2d(self.use_SAR*2+10, self.F, kernel_size=self.kernel_size, padding=self.padding_size, bias=True), nn.ReLU(True)]
+        model = [nn.Conv2d(self.use_SAR*2+input_nc, self.F, kernel_size=self.kernel_size, padding=self.padding_size, bias=True), nn.ReLU(True)]
         # generate a given number of blocks
         for i in range(self.B):
             model += [ResnetBlock2D(self.F, use_dropout=self.dropout, use_bias=True,
@@ -173,7 +174,7 @@ class StackedResnet2D(nn.Module):
         if self.use_64C:
             model += [nn.Conv2d(64, 13, kernel_size=self.kernel_size, padding=self.padding_size, bias=True)]
         else:
-            model += [nn.Conv2d(self.F, 10, kernel_size=self.kernel_size, padding=self.padding_size, bias=True)]
+            model += [nn.Conv2d(self.F, input_nc, kernel_size=self.kernel_size, padding=self.padding_size, bias=True)]
         
         self.model = nn.Sequential(*model)
 

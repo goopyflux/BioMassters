@@ -1,11 +1,11 @@
 """Available models in biomasstry package."""
 
 from .fcn import FCN
-from .temporal_model import TemporalSentinel2Model
+from .temporal_model import TemporalSentinelModel
 
 __all__ = (
     "FCN",
-    "TemporalSentinel2Model",
+    "TemporalSentinelModel",
 )
 
 # https://stackoverflow.com/questions/40018681
