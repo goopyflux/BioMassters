@@ -49,6 +49,10 @@ setup-gradient:
 	pip install --upgrade transformers accelerate nvidia-ml-py3 && \
 	pip install -e .
 
+## Create submission.zip file from /notebooks/submisson folder with predicted images
+submission:
+	zip -r -m submission submission/*
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################
