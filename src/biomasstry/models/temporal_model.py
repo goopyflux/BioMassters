@@ -25,7 +25,7 @@ class TemporalSentinelModel(nn.Module):
         self.input_nc = input_nc
 
         model_initial = StackedResnet2D(opt=opt, input_nc=self.input_nc)
-        self.n_channels = 64 if not opt else opt.resnet_F
+        self.n_channels = 32 if not opt else opt.resnet_F
 
         model_final = [nn.Conv3d(self.input_nc, self.n_channels, kernel_size=(3, 3, 3), padding=1, bias=True), nn.ReLU(True)]
         for i in range(4):
@@ -148,7 +148,7 @@ class StackedResnet2D(nn.Module):
         super(StackedResnet2D, self).__init__()
         
         # architecture parameters
-        self.F           = 64 if not opt else opt.resnet_F
+        self.F           = 32 if not opt else opt.resnet_F
         self.B           = 8 if not opt else opt.resnet_B
         self.kernel_size = 3
         self.padding_size= 1
