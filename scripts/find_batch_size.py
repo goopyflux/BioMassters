@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
 
-USE_SENTINEL_1 = True
+USE_SENTINEL_1 = False
 
 def training_function(batch_size):
     accelerator = Accelerator()
@@ -25,22 +25,26 @@ def training_function(batch_size):
         nonlocal accelerator  # Ensure they can be used in our context
         accelerator.free_memory()  # Free all lingering references
         
+        # Sentinel Dataset
+        if USE_SENTINEL_1:
+            sds = TemporalSentinel1Dataset()
+            input_nc = 4
+            n_tsamples = 12
+        else:
+            sds = TemporalSentinel2Dataset()
+            input_nc = 10
+            n_tsamples = 5
+        
         # Model
         model = TemporalSentinelModel(
-            n_tsamples=12,
-            input_nc=4,
+            n_tsamples=n_tsamples,
+            input_nc=input_nc,
             output_nc=1
         ).to(accelerator.device)
 
         # Optimizer
         optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
 
-        # Sentinel Dataset
-        if USE_SENTINEL_1:
-            sds = TemporalSentinel1Dataset()
-        else:
-            sds = TemporalSentinel2Dataset()
-        
 
         # Split dataset into training and validation sets
         torch.manual_seed(0)

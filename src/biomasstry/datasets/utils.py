@@ -3,7 +3,7 @@
 import warnings
 
 import fsspec
-# import numpy as np
+import numpy as np
 import rasterio
 from rasterio.io import MemoryFile
 import torch
@@ -22,6 +22,6 @@ def load_raster(file_url: str) -> Tensor:
         with MemoryFile(raw_bytes) as memfile:
             with memfile.open() as buffer:
                 array = buffer.read()
-                # if array.dtype == np.uint16:
-                    # array = array.astype(np.float)
+                if array.dtype == np.uint16:
+                    array = array.astype(np.float)
     return torch.tensor(array, dtype=torch.float32)
