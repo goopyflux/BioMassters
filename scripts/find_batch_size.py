@@ -5,13 +5,17 @@ References:
  - https://huggingface.co/docs/accelerate/package_reference/utilities#accelerate.find_executable_batch_size
  """
 
+from time import time
+
 from accelerate import Accelerator, find_executable_batch_size
-from biomasstry.datasets import TemporalSentinel1Dataset
+from biomasstry.datasets import TemporalSentinel1Dataset, TemporalSentinel2Dataset
 from biomasstry.models import TemporalSentinelModel
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
+
+USE_SENTINEL_1 = True
 
 def training_function(batch_size):
     accelerator = Accelerator()
@@ -31,19 +35,22 @@ def training_function(batch_size):
         # Optimizer
         optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
 
-        # Sentinel-1 Dataset
-        s1ds = TemporalSentinel1Dataset()
+        # Sentinel Dataset
+        if USE_SENTINEL_1:
+            sds = TemporalSentinel1Dataset()
+        else:
+            sds = TemporalSentinel2Dataset()
+        
 
         # Split dataset into training and validation sets
         torch.manual_seed(0)
-        train_size = int(0.8*len(s1ds))
-        valid_size = len(s1ds) - train_size
-        train_set, val_set = random_split(s1ds, [train_size, valid_size])
+        train_size = int(0.8*len(sds))
+        valid_size = len(sds) - train_size
+        train_set, val_set = random_split(sds, [train_size, valid_size])
         print(f"Train samples: {len(train_set)} "
               f"Val. samples: {len(val_set)}")
         
         # DataLoaders
-        batch_size = 32
         num_workers = 4
         train_dataloader = DataLoader(train_set,
                                     batch_size=batch_size,
@@ -65,40 +72,48 @@ def training_function(batch_size):
         )
 
         # Training Loop
+        print(f"Starting training with batch size = {batch_size}")
+        print(f"Model: {model.model_initial}")
         loss_function = nn.MSELoss(reduction='mean')  # Loss function
-        nb_epochs = 1
         num_batches = len(eval_dataloader)
         train_metrics = []
         val_metrics = []
-        for i in range(nb_epochs):
-            train_metrics_epoch = []
-            for batch in train_dataloader:
-                optimizer.zero_grad()
+        start_epoch = time()
+        train_metrics_epoch = []
+        for batch in train_dataloader:
+            optimizer.zero_grad()
+            inputs = batch["image"]
+            targets = batch["target"]
+            outputs = model(inputs)
+            loss = loss_function(outputs, targets)
+            accelerator.backward(loss)
+            optimizer.step()
+            train_metrics_epoch.append(np.round(np.sqrt(loss.item()), 5))
+        
+        end_epoch = time()
+        
+        # Validation Loop
+        val_loss = 0.0
+        with torch.no_grad():
+            for batch in eval_dataloader:
                 inputs = batch["image"]
                 targets = batch["target"]
-                outputs = model(inputs)
-                loss = loss_function(outputs, targets)
-                accelerator.backward(loss)
-                optimizer.step()
-                train_metrics_epoch.append(np.round(np.sqrt(loss.item()), 5))
+                predictions = model(inputs)
+                # Gather all predictions and targets
+                all_predictions, all_targets = accelerator.gather_for_metrics((predictions, targets))
+                val_loss += loss_function(predictions, targets).item()
 
-            # Validation Loop
-            val_loss = 0.0
-            with torch.no_grad():
-                for batch in eval_dataloader:
-                    inputs = batch["image"]
-                    targets = batch["target"]
-                    predictions = model(inputs)
-                    # Gather all predictions and targets
-                    all_predictions, all_targets = accelerator.gather_for_metrics((predictions, targets))
-                    val_loss += loss_function(predictions, targets).item()
+        print(f"Time for one epoch on batch size {batch_size}: {end_epoch - start_epoch}")
 
-            val_loss /= num_batches
-            val_rmse = np.round(np.sqrt(val_loss), 5)
-            print(f"Validation Error: \n RMSE: {val_rmse:>8f} \n")
-            train_metrics.extend(train_metrics_epoch)
-            val_metrics.append((len(train_metrics), val_rmse))
+        val_loss /= num_batches
+        val_rmse = np.round(np.sqrt(val_loss), 5)
+        print(f"Validation Error: \n RMSE: {val_rmse:>8f} \n")
+        train_metrics.extend(train_metrics_epoch)
+        val_metrics.append((len(train_metrics), val_rmse))
     inner_training_loop()
 
 if __name__ == "__main__":
-    training_function(batch_size=32)
+    start_all = time()
+    training_function(batch_size=16)
+    end_all = time()
+    print(f"Total time: {end_all - start_all}")
