@@ -78,7 +78,6 @@ class TemporalSentinel2Dataset(Dataset):
         bands: Sequence[str] = [], 
         months: Sequence[str] =[],
         train: bool = True, 
-        transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None, 
         target_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
     ) -> None:
         """ Initialize a new instance of the Sentinel-2 Dataset.
@@ -114,7 +113,6 @@ class TemporalSentinel2Dataset(Dataset):
                   "Only CSV and Parquet format files are supported.")
 
         self.months = months if months else self.temporal_months
-        self.transform = transform
         self.target_transform = target_transform
         
         if train:
@@ -133,8 +131,13 @@ class TemporalSentinel2Dataset(Dataset):
             for m in self.months]
         timg_data = [load_raster(img_path)[:10] for img_path in img_paths]  # only first 10 channels, leave out cloud coverage channel
 
-        if self.transform is not None:
-            timg_data = [self.transform(img) for img in timg_data]
+        # clip Sentinel-2 to [0, 10000]
+        timg_data = [torch.clip(img, min=0, max=10000) for img in timg_data]
+
+        # Divide by 2000
+        timg_data = [torch.div(img, 2000.0) for img in timg_data]
+
+        # TODO Rescale data between (0, 1)
 
         # Target image
         target_data = None
