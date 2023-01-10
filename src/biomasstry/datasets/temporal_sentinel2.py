@@ -11,6 +11,11 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 
+def rescale(img, oldMin, oldMax):
+    oldRange = oldMax - oldMin
+    img      = (img - oldMin) / oldRange
+    return img
+
 class TemporalSentinel2Dataset(Dataset):
     """Temporal Sentinel-2 Dataset (only months April - August).
     
@@ -138,7 +143,9 @@ class TemporalSentinel2Dataset(Dataset):
         timg_data = [torch.div(img, 2000.0) for img in timg_data]
 
         # TODO Rescale data between (0, 1)
-
+        # project to [0,1], preserve global intensities (across patches), gets mapped to [-1,+1] in wrapper (??)
+        # img = rescale(img, intensity_min, intensity_max)
+        
         # Target image
         target_data = None
         if self.train:
