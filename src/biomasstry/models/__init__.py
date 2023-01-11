@@ -2,10 +2,12 @@
 
 from .fcn import FCN
 from .temporal_model import TemporalSentinelModel
+from .unet_tae import UTAE
 
 __all__ = (
     "FCN",
     "TemporalSentinelModel",
+    "UTAE",
 )
 
 # https://stackoverflow.com/questions/40018681
