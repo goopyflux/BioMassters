@@ -9,7 +9,7 @@ from time import time
 
 from accelerate import Accelerator, find_executable_batch_size
 from biomasstry.datasets import TemporalSentinel1Dataset, TemporalSentinel2Dataset
-from biomasstry.models import TemporalSentinelModel
+from biomasstry.models import TemporalSentinelModel, UTAE
 import numpy as np
 import torch
 import torch.nn as nn
@@ -36,11 +36,12 @@ def training_function(batch_size):
             n_tsamples = 5
         
         # Model
-        model = TemporalSentinelModel(
-            n_tsamples=n_tsamples,
-            input_nc=input_nc,
-            output_nc=1
-        ).to(accelerator.device)
+        # model = TemporalSentinelModel(
+        #     n_tsamples=n_tsamples,
+        #     input_nc=input_nc,
+        #     output_nc=1
+        # ).to(accelerator.device)
+        model = UTAE(input_nc).to(accelerator.device)
 
         # Optimizer
         optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
@@ -77,7 +78,6 @@ def training_function(batch_size):
 
         # Training Loop
         print(f"Starting training with batch size = {batch_size}")
-        print(f"Model: {model.model_initial}")
         loss_function = nn.MSELoss(reduction='mean')  # Loss function
         num_batches = len(eval_dataloader)
         train_metrics = []
@@ -88,6 +88,7 @@ def training_function(batch_size):
             optimizer.zero_grad()
             inputs = batch["image"]
             targets = batch["target"]
+            inputs = torch.stack(inputs, dim=1)
             outputs = model(inputs)
             loss = loss_function(outputs, targets)
             accelerator.backward(loss)
@@ -95,6 +96,7 @@ def training_function(batch_size):
             train_metrics_epoch.append(np.round(np.sqrt(loss.item()), 5))
         
         end_epoch = time()
+        print(f"Time for one epoch on batch size {batch_size}: {end_epoch - start_epoch}")
         
         # Validation Loop
         val_loss = 0.0
@@ -102,12 +104,11 @@ def training_function(batch_size):
             for batch in eval_dataloader:
                 inputs = batch["image"]
                 targets = batch["target"]
+                inputs = torch.stack(inputs, dim=1)
                 predictions = model(inputs)
                 # Gather all predictions and targets
                 all_predictions, all_targets = accelerator.gather_for_metrics((predictions, targets))
                 val_loss += loss_function(predictions, targets).item()
-
-        print(f"Time for one epoch on batch size {batch_size}: {end_epoch - start_epoch}")
 
         val_loss /= num_batches
         val_rmse = np.round(np.sqrt(val_loss), 5)
