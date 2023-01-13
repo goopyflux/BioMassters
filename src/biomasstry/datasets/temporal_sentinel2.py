@@ -11,11 +11,6 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 
-def rescale(img, oldMin, oldMax):
-    oldRange = oldMax - oldMin
-    img      = (img - oldMin) / oldRange
-    return img
-
 class TemporalSentinel2Dataset(Dataset):
     """Temporal Sentinel-2 Dataset (only months April - August).
     
@@ -41,19 +36,19 @@ class TemporalSentinel2Dataset(Dataset):
     For information on the satellite data and its sources, check out the competiton `About Page <https://www.drivendata.org/competitions/99/biomass-estimation/page/535/>`_.
     """
 
-    all_bands = [
-        "B2",
-        "B3",
-        "B4",
-        "B5",
-        "B6",
-        "B7",
-        "B8",
-        "B8A",
-        "B11",
-        "B12",
-        "CLP"
-    ]
+    band_map = {
+        "B2": 1,
+        "B3": 2,
+        "B4": 3,
+        "B5": 4,
+        "B6": 5,
+        "B7": 6,
+        "B8": 7,
+        "B8A": 8,
+        "B11": 9,
+        "B12": 10,
+        "CLP": 11
+    }
 
     month_map = {
         "september": "00",
@@ -107,8 +102,6 @@ class TemporalSentinel2Dataset(Dataset):
             self.feaures_dir = self.data_url + "/test_features"
             self.targets_dir = ""
 
-        self.bands = bands if bands else self.all_bands
-
         if metadata_file.endswith(".parquet"):
             metadata_df = pd.read_parquet(metadata_file)
         elif metadata_file.endswith(".csv"):
@@ -118,6 +111,10 @@ class TemporalSentinel2Dataset(Dataset):
                   "Only CSV and Parquet format files are supported.")
 
         self.months = months if months else self.temporal_months
+        if bands:
+            self.band_indexes = [self.band_map[band] for band in bands]
+        else:
+            self.band_indexes = list(range(1, 11))  # All bands except CLP
         self.target_transform = target_transform
         
         if train:
@@ -134,18 +131,17 @@ class TemporalSentinel2Dataset(Dataset):
         # Input image
         img_paths = [self.feaures_dir + f"/{self.chip_ids[idx]}_S2_{self.month_map[m]}.tif" 
             for m in self.months]
-        timg_data = [load_raster(img_path)[:10] for img_path in img_paths]  # only first 10 channels, leave out cloud coverage channel
+        timg_data = [load_raster(img_path, indexes=self.band_indexes) for img_path in img_paths]
+
+        # Stack temporally to create a TxCxWxH dataset
+        timg_data = torch.stack(timg_data, dim=0)
 
         # clip Sentinel-2 to [0, 10000]
-        timg_data = [torch.clip(img, min=0, max=10000) for img in timg_data]
+        timg_data = torch.clip(timg_data, min=0, max=10000)
 
         # Divide by 2000
-        timg_data = [torch.div(img, 2000.0) for img in timg_data]
+        timg_data = torch.div(timg_data, 2000.0)
 
-        # TODO Rescale data between (0, 1)
-        # project to [0,1], preserve global intensities (across patches), gets mapped to [-1,+1] in wrapper (??)
-        # img = rescale(img, intensity_min, intensity_max)
-        
         # Target image
         target_data = None
         if self.train:
