@@ -43,12 +43,12 @@ class TemporalSentinel1Dataset(Dataset):
     it helpful to consult NASA's guide to SAR.
     """
 
-    all_bands = [
-        "VVa",  ## VV ascending
-        "VHa",  ## VH ascending
-        "VVd",  ## VV descending
-        "VHd",  ## VH descending
-    ]
+    band_map = {
+        "VVA": 1,
+        "VHA": 2,
+        "VVD": 3,
+        "VHD": 4
+    }
 
     month_map = {
         "september": "00",
@@ -75,8 +75,8 @@ class TemporalSentinel1Dataset(Dataset):
     def __init__(self, 
         metadata_file: str = "",
         data_url: str = "",
-        bands: Sequence[str] = [], 
         months: Sequence[str] =[],
+        bands: Sequence[str] = [],
         train: bool = True, 
         transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None, 
         target_transform: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
@@ -103,8 +103,6 @@ class TemporalSentinel1Dataset(Dataset):
             self.feaures_dir = self.data_url + "/test_features"
             self.targets_dir = ""
 
-        self.bands = bands if bands else self.all_bands
-
         if metadata_file.endswith(".parquet"):
             metadata_df = pd.read_parquet(metadata_file)
         elif metadata_file.endswith(".csv"):
@@ -114,6 +112,10 @@ class TemporalSentinel1Dataset(Dataset):
                   "Only CSV and Parquet format files are supported.")
 
         self.months = months if months else self.temporal_months  # list(self.month_map.keys())
+        if bands:
+            self.band_indexes = [self.band_map[band] for band in bands]
+        else:
+            self.band_indexes = [1, 2, 3, 4]  # All bands
         self.transform = transform
         self.target_transform = target_transform
         
@@ -131,8 +133,12 @@ class TemporalSentinel1Dataset(Dataset):
         # Input image
         img_paths = [self.feaures_dir + f"/{self.chip_ids[idx]}_S1_{self.month_map[m]}.tif" 
             for m in self.months]
-        timg_data = [load_raster(img_path) for img_path in img_paths]
+        timg_data = [load_raster(img_path, indexes=self.band_indexes) for img_path in img_paths]
 
+        # Stack temporally to create a TxCxWxH dataset
+        timg_data = torch.stack(timg_data, dim=0)
+
+        # TODO Update transform to work with temporal tensor.
         if self.transform is not None:
             timg_data = [self.transform(img) for img in timg_data]
 
