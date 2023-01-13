@@ -65,7 +65,7 @@ class TemporalSentinel1Dataset(Dataset):
         "august": "11"
     }
 
-    temporal_months = ["april", "may", "june", "july", "august"]
+    temporal_months = ["april", "may", "june", "july", "august", "september"]
 
     # Setup S3 URLs and folder locations within the S3 bucket
     # S3_URL = "s3://drivendata-competition-biomassters-public-us"
@@ -113,7 +113,7 @@ class TemporalSentinel1Dataset(Dataset):
             raise Exception(f"Unsupported format for metadata file: {metadata_file}. "
                   "Only CSV and Parquet format files are supported.")
 
-        self.months = months if months else list(self.month_map.keys())
+        self.months = months if months else self.temporal_months  # list(self.month_map.keys())
         self.transform = transform
         self.target_transform = target_transform
         

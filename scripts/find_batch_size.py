@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
 
-USE_SENTINEL_1 = False
+USE_SENTINEL_1 = True
 
 def training_function(batch_size):
     accelerator = Accelerator()
@@ -29,7 +29,7 @@ def training_function(batch_size):
         if USE_SENTINEL_1:
             sds = TemporalSentinel1Dataset()
             input_nc = 4
-            n_tsamples = 12
+            n_tsamples = 6
         else:
             sds = TemporalSentinel2Dataset()
             input_nc = 10
