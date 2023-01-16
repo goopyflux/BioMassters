@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
 
-USE_SENTINEL_1 = True
+USE_SENTINEL_1 = False
 
 def training_function(batch_size):
     accelerator = Accelerator()
@@ -27,8 +27,8 @@ def training_function(batch_size):
         
         # Sentinel Dataset
         if USE_SENTINEL_1:
-            sds = TemporalSentinel1Dataset()
-            input_nc = 4
+            sds = TemporalSentinel1Dataset(bands=["VVA", "VHA"])
+            input_nc = 2
             n_tsamples = 6
         else:
             sds = TemporalSentinel2Dataset()
@@ -88,7 +88,6 @@ def training_function(batch_size):
             optimizer.zero_grad()
             inputs = batch["image"]
             targets = batch["target"]
-            inputs = torch.stack(inputs, dim=1)
             outputs = model(inputs)
             loss = loss_function(outputs, targets)
             accelerator.backward(loss)
@@ -104,7 +103,6 @@ def training_function(batch_size):
             for batch in eval_dataloader:
                 inputs = batch["image"]
                 targets = batch["target"]
-                inputs = torch.stack(inputs, dim=1)
                 predictions = model(inputs)
                 # Gather all predictions and targets
                 all_predictions, all_targets = accelerator.gather_for_metrics((predictions, targets))
