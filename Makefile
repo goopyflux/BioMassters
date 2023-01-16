@@ -50,6 +50,10 @@ setup-gradient:
 	pip install -e . && \
 	accelerate config
 
+## Run script that finds the batch size to avoid GPU out-of-memory issue.
+find-batch:
+	accelerate launch scripts/find_batch_size.py
+
 ## Create submission.zip file from /notebooks/submisson folder with predicted images
 submission:
 	zip -r -m submission submission/*

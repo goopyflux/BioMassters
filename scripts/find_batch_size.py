@@ -18,7 +18,7 @@ from torch.utils.data import random_split, DataLoader
 USE_SENTINEL_1 = False
 
 def training_function(batch_size):
-    accelerator = Accelerator()
+    accelerator = Accelerator(gradient_accumulation_steps=4, mixed_precision='fp16')
 
     @find_executable_batch_size(starting_batch_size=batch_size)
     def inner_training_loop(batch_size):
@@ -44,7 +44,7 @@ def training_function(batch_size):
         model = UTAE(input_nc).to(accelerator.device)
 
         # Optimizer
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.02)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 
         # Split dataset into training and validation sets
@@ -56,7 +56,7 @@ def training_function(batch_size):
               f"Val. samples: {len(val_set)}")
         
         # DataLoaders
-        num_workers = 4
+        num_workers = 6
         train_dataloader = DataLoader(train_set,
                                     batch_size=batch_size,
                                     shuffle=True,
