@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.io import MemoryFile
-import fsspec
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader

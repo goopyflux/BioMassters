@@ -47,7 +47,8 @@ setup-gradient:
 	git pull && \
 	pip install --upgrade s3fs rasterio && \
 	pip install --upgrade transformers accelerate nvidia-ml-py3 && \
-	pip install -e .
+	pip install -e . && \
+	accelerate config
 
 ## Create submission.zip file from /notebooks/submisson folder with predicted images
 submission:
