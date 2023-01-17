@@ -118,7 +118,7 @@ class TemporalSentinel2Dataset(Dataset):
         self.target_transform = target_transform
         
         if train:
-            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()[:1000]
+            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
         else:
             self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
 
@@ -137,10 +137,10 @@ class TemporalSentinel2Dataset(Dataset):
         timg_data = torch.stack(timg_data, dim=0)
 
         # clip Sentinel-2 to [0, 10000]
-        # timg_data = torch.clip(timg_data, min=0, max=10000)
+        timg_data = torch.clip(timg_data, min=0, max=10000)
 
         # Divide by 2000
-        # timg_data = torch.div(timg_data, 2000.0)
+        timg_data = torch.div(timg_data, 2000.0)
 
         # Target image
         target_data = None
