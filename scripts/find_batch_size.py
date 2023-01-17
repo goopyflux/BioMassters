@@ -14,6 +14,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import random_split, DataLoader
+from tqdm import tqdm
 
 USE_SENTINEL_1 = False
 
@@ -41,7 +42,7 @@ def training_function(batch_size):
         #     input_nc=input_nc,
         #     output_nc=1
         # ).to(accelerator.device)
-        model = UTAE(input_nc).to(accelerator.device)
+        model = UTAE(input_nc)  # .to(accelerator.device)
 
         # Optimizer
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -56,7 +57,7 @@ def training_function(batch_size):
               f"Val. samples: {len(val_set)}")
         
         # DataLoaders
-        num_workers = 6
+        num_workers = 4
         train_dataloader = DataLoader(train_set,
                                     batch_size=batch_size,
                                     shuffle=True,
@@ -79,40 +80,36 @@ def training_function(batch_size):
         # Training Loop
         print(f"Starting training with batch size = {batch_size}")
         loss_function = nn.MSELoss(reduction='mean')  # Loss function
-        num_batches = len(eval_dataloader)
-        train_metrics = []
-        val_metrics = []
         start_epoch = time()
-        train_metrics_epoch = []
-        for batch in train_dataloader:
-            optimizer.zero_grad()
-            inputs = batch["image"]
-            targets = batch["target"]
-            outputs = model(inputs)
-            loss = loss_function(outputs, targets)
-            accelerator.backward(loss)
-            optimizer.step()
-            train_metrics_epoch.append(np.round(np.sqrt(loss.item()), 5))
-        
+        for batch in tqdm(train_dataloader):
+             with accelerator.accumulate(model):
+                inputs = batch["image"]
+                targets = batch["target"]
+                outputs = model(inputs)
+                loss = loss_function(outputs, targets)
+                accelerator.backward(loss)
+                optimizer.zero_grad()        
+                optimizer.step()
+
         end_epoch = time()
         print(f"Time for one epoch on batch size {batch_size}: {end_epoch - start_epoch}")
         
         # Validation Loop
         val_loss = 0.0
+        nb_samples = 0
         with torch.no_grad():
-            for batch in eval_dataloader:
+            for batch in tqdm(eval_dataloader):
                 inputs = batch["image"]
                 targets = batch["target"]
                 predictions = model(inputs)
                 # Gather all predictions and targets
                 all_predictions, all_targets = accelerator.gather_for_metrics((predictions, targets))
-                val_loss += loss_function(predictions, targets).item()
+                val_loss += loss_function(all_predictions, all_targets).item()
+                nb_samples += all_predictions.shape[0]
 
-        val_loss /= num_batches
+        val_loss /= nb_samples
         val_rmse = np.round(np.sqrt(val_loss), 5)
         print(f"Validation Error: \n RMSE: {val_rmse:>8f} \n")
-        train_metrics.extend(train_metrics_epoch)
-        val_metrics.append((len(train_metrics), val_rmse))
     inner_training_loop()
 
 if __name__ == "__main__":

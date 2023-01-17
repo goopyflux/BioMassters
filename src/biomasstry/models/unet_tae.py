@@ -15,7 +15,7 @@ class UTAE(nn.Module):
         input_dim,
         encoder_widths=[64, 64, 64, 128],
         decoder_widths=[32, 32, 64, 128],
-        out_conv=[32, 20],
+        out_conv=[32, 1],
         str_conv_k=4,
         str_conv_s=2,
         str_conv_p=1,
