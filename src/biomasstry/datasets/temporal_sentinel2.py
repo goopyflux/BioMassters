@@ -70,10 +70,9 @@ class TemporalSentinel2Dataset(Dataset):
     # Setup S3 URLs and folder locations within the S3 bucket
     # S3_URL = "s3://drivendata-competition-biomassters-public-us"
     S3_URL = "/datasets/biomassters"
-    metadata_file = "/notebooks/data/metadata_parquet/features_metadata_slim.parquet"
     
     def __init__(self, 
-        metadata_file: str = "",
+        chip_ids,
         data_url: str = "",
         bands: Sequence[str] = [], 
         months: Sequence[str] =[],
@@ -83,13 +82,7 @@ class TemporalSentinel2Dataset(Dataset):
         """ Initialize a new instance of the Sentinel-2 Dataset.
         Args:
         """
-        if not metadata_file:
-            metadata_file = self.metadata_file
-        if not os.path.exists(metadata_file):
-            raise FileNotFoundError(f"File {metadata_file} not found! "
-                                    "Please check the path and make sure the file exists."
-                                   )
-
+        self.chip_ids = chip_ids
         self.data_url = data_url
         self.train = train
         # Data URL resolution
@@ -102,25 +95,12 @@ class TemporalSentinel2Dataset(Dataset):
             self.feaures_dir = self.data_url + "/test_features"
             self.targets_dir = ""
 
-        if metadata_file.endswith(".parquet"):
-            metadata_df = pd.read_parquet(metadata_file)
-        elif metadata_file.endswith(".csv"):
-            metadata_df = pd.read_csv(metadata_file)
-        else:
-            raise Exception(f"Unsupported format for metadata file: {metadata_file}. "
-                  "Only CSV and Parquet format files are supported.")
-
         self.months = months if months else self.temporal_months
         if bands:
             self.band_indexes = [self.band_map[band] for band in bands]
         else:
             self.band_indexes = list(range(1, 11))  # All bands except CLP
         self.target_transform = target_transform
-        
-        if train:
-            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
-        else:
-            self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
 
     def __len__(self):
         """Return the length of the dataset."""
