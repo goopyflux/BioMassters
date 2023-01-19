@@ -12,3 +12,5 @@ artifacts/
 submission/
 submission.zip
 *.zip
+*.dat
+*.png

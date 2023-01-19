@@ -15,7 +15,7 @@ from torch.utils.data import random_split, DataLoader
 from transformers import TrainingArguments, Trainer, logging
 from tqdm import tqdm
 
-
+@profile
 def get_dataloaders(chip_ids, dataset: str, batch_size: int=8, num_workers: int=4):
     """Return train and eval DataLoaders with specified batch size.
     
@@ -66,6 +66,7 @@ def get_dataloaders(chip_ids, dataset: str, batch_size: int=8, num_workers: int=
                         num_workers=num_workers)
     return train_dataloader, eval_dataloader
 
+@profile
 def training_loop(dataset: str,
                   mixed_precision: str="fp16",
                   seed: int=123,
@@ -156,16 +157,17 @@ def training_loop(dataset: str,
         epoch_start = time()
         # accelerator.print(f"Training")
         print(f"Training")
-        for batch in tqdm(train_dataloader):
+        for b, batch in enumerate(tqdm(train_dataloader)):
             # with accelerator.accumulate(model):
-            inputs = batch["image"].to(device)
-            targets = batch["target"].to(device)
-            outputs = model(inputs)
-            loss = loss_function(outputs, targets)
+            inputs, targets, _ = batch
+            outputs = model(inputs.to(device))
+            loss = loss_function(outputs, targets.to(device))
             # accelerator.backward(loss)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+            if b == 2:
+                break
 
         epoch_end = time()
         # accelerator.print(f"  Training time: {epoch_end - epoch_start}")
@@ -184,16 +186,17 @@ def training_loop(dataset: str,
         num_elements = 0
         # accelerator.print(f"Validation")
         print(f"Validation")
-        for batch in tqdm(eval_dataloader):
-            inputs = batch["image"].to(device)
-            targets = batch["target"].to(device)
+        for b, batch in enumerate(tqdm(eval_dataloader)):
+            inputs, targets, _ = batch
             with torch.no_grad():
-                predictions = model(inputs)
+                predictions = model(inputs.to(device))
             # Gather all predictions and targets
             # all_predictions, all_targets = accelerator.gather_for_metrics((predictions, targets))
             # num_elements += all_predictions.shape[0]
             # val_loss += loss_function(all_predictions, all_targets).item()
-            val_loss += loss_function(predictions, targets).item()
+            val_loss += loss_function(predictions, targets.to(device)).item()
+            if b == 2:
+                break
 
         val_loss /= len(eval_dataloader)
         val_rmse = np.round(np.sqrt(val_loss), 5)
@@ -212,3 +215,15 @@ def training_loop(dataset: str,
             torch.save(model.state_dict(), best_model_path)
             print(f"  Best Model file path: {best_model_path}")
 
+if __name__ == "__main__":
+    dataset = "Sentinel-2all"
+    mixed_precision = "fp16"
+    seed = 123
+    batch_size = 8
+    gradient_accumulation_steps = 4
+    nb_epochs = 1
+    train_mode = "tune"
+
+    train_args = (dataset, mixed_precision, seed, batch_size,
+                  gradient_accumulation_steps, nb_epochs)
+    training_loop(*train_args)

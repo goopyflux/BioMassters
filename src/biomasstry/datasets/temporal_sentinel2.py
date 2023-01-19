@@ -5,6 +5,7 @@ from typing import Sequence, Optional, Callable, Dict, Any
 
 from biomasstry.datasets.utils import make_temporal_tensor, load_raster
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 from torch import Tensor
@@ -82,7 +83,7 @@ class TemporalSentinel2Dataset(Dataset):
         """ Initialize a new instance of the Sentinel-2 Dataset.
         Args:
         """
-        self.chip_ids = chip_ids
+        self.chip_ids = np.asarray(chip_ids)
         self.data_url = data_url
         self.train = train
         # Data URL resolution
@@ -97,20 +98,23 @@ class TemporalSentinel2Dataset(Dataset):
 
         self.months = months if months else self.temporal_months
         if bands:
-            self.band_indexes = [self.band_map[band] for band in bands]
+            self.band_indexes = np.asarray([self.band_map[band] for band in bands])
         else:
-            self.band_indexes = list(range(1, 11))  # All bands except CLP
+            self.band_indexes = np.arange(1, 11)  # All bands except CLP
         self.target_transform = target_transform
 
     def __len__(self):
         """Return the length of the dataset."""
         return len(self.chip_ids)
+    
+    def _get_image_paths(self, chip_id):
+        return np.asarray([self.feaures_dir + f"/{self.chip_ids[chip_id]}_S2_{self.month_map[m]}.tif" 
+                           for m in self.months])
 
     def __getitem__(self, idx):
         """Return a single (image, label) corresponding to idx."""
         # Input image
-        img_paths = [self.feaures_dir + f"/{self.chip_ids[idx]}_S2_{self.month_map[m]}.tif" 
-            for m in self.months]
+        img_paths = self._get_image_paths(idx)
         
         # Create temporal tensor of size TxCxWxH
         timg_data = make_temporal_tensor(img_paths, self.band_indexes)
@@ -129,9 +133,10 @@ class TemporalSentinel2Dataset(Dataset):
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)
 
-        return {'image': timg_data,
-            'target': target_data,
-            'chip_id': self.chip_ids[idx]}
+        # return {'image': timg_data,
+        #     'target': target_data,
+        #     'chip_id': self.chip_ids[idx]}
+        return timg_data, target_data, self.chip_ids[idx]
 
     def plot(
         self,
