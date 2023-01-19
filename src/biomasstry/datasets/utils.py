@@ -33,3 +33,11 @@ def load_raster(file_url: str, indexes=None) -> Tensor:
                 if array.dtype == np.uint16:
                     array = array.astype(np.float)
     return torch.tensor(array, dtype=torch.float32)
+
+def make_temporal_tensor(image_paths, band_indexes):
+    timg_data = [load_raster(img_path, indexes=band_indexes) for img_path in image_paths]
+
+    # Stack temporally to create a TxCxWxH dataset
+    timg_data = torch.stack(timg_data, dim=0)
+    
+    return timg_data

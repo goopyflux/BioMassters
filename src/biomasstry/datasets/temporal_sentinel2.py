@@ -3,7 +3,7 @@
 import os
 from typing import Sequence, Optional, Callable, Dict, Any
 
-from biomasstry.datasets.utils import load_raster
+from biomasstry.datasets.utils import make_temporal_tensor, load_raster
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
@@ -111,10 +111,9 @@ class TemporalSentinel2Dataset(Dataset):
         # Input image
         img_paths = [self.feaures_dir + f"/{self.chip_ids[idx]}_S2_{self.month_map[m]}.tif" 
             for m in self.months]
-        timg_data = [load_raster(img_path, indexes=self.band_indexes) for img_path in img_paths]
-
-        # Stack temporally to create a TxCxWxH dataset
-        timg_data = torch.stack(timg_data, dim=0)
+        
+        # Create temporal tensor of size TxCxWxH
+        timg_data = make_temporal_tensor(img_paths, self.band_indexes)
 
         # clip Sentinel-2 to [0, 10000]
         timg_data = torch.clip(timg_data, min=0, max=10000)
