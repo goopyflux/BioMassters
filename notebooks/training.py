@@ -219,7 +219,7 @@ if __name__ == "__main__":
     dataset = "Sentinel-2all"
     mixed_precision = "fp16"
     seed = 123
-    batch_size = 8
+    batch_size = 4
     gradient_accumulation_steps = 4
     nb_epochs = 1
     train_mode = "tune"

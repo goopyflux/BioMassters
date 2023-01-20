@@ -157,11 +157,11 @@ class UTAE(nn.Module):
         skip2 = self.temporal_aggregator(xd1, pad_mask=pad_mask, attn_mask=att)
         xu2 = self.up_blocks[1](xu1, skip2)  # Up sampling
         if self.return_maps:
-            maps.append(xu1)
+            maps.append(xu2)
         skip3 = self.temporal_aggregator(xic, pad_mask=pad_mask, attn_mask=att)
         xu3 = self.up_blocks[2](xu2, skip3)  # Up sampling
         if self.return_maps:
-            maps.append(xu1)
+            maps.append(xu3)
 
         if self.encoder:
             return xu3, maps
