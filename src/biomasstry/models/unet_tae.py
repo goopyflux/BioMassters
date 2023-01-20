@@ -132,37 +132,80 @@ class UTAE(nn.Module):
         pad_mask = (
             (input == self.pad_value).all(dim=-1).all(dim=-1).all(dim=-1)
         )  # BxT pad mask
-        out = self.in_conv.smart_forward(input)
-        feature_maps = [out]
+        
+        # ========Start new addition ==================================
+        # Modify model execution to use tensors instead of Python Lists
+        # Unroll for loops
+        xic = self.in_conv.smart_forward(input)
+
         # SPATIAL ENCODER
-        for i in range(self.n_stages - 1):
-            out = self.down_blocks[i].smart_forward(feature_maps[-1])
-            feature_maps.append(out)
+        xd1 = self.down_blocks[0].smart_forward(xic)  # down-sampling
+        xd2 = self.down_blocks[1].smart_forward(xd1)  # down-sampling
+        xd3 = self.down_blocks[2].smart_forward(xd2)  # down-sampling
+
         # TEMPORAL ENCODER
-        out, att = self.temporal_encoder(
-            feature_maps[-1], batch_positions=batch_positions, pad_mask=pad_mask
+        xte, att = self.temporal_encoder(
+            xd3, batch_positions=batch_positions, pad_mask=pad_mask
         )
         # SPATIAL DECODER
         if self.return_maps:
-            maps = [out]
-        for i in range(self.n_stages - 1):
-            skip = self.temporal_aggregator(
-                feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
-            )
-            out = self.up_blocks[i](out, skip)
-            if self.return_maps:
-                maps.append(out)
+            maps = [xte]
+        skip1 = self.temporal_aggregator(xd2, pad_mask=pad_mask, attn_mask=att)
+        xu1 = self.up_blocks[0](xte, skip1)  # Up sampling
+        if self.return_maps:
+            maps.append(xu1)
+        skip2 = self.temporal_aggregator(xd1, pad_mask=pad_mask, attn_mask=att)
+        xu2 = self.up_blocks[1](xu1, skip2)  # Up sampling
+        if self.return_maps:
+            maps.append(xu1)
+        skip3 = self.temporal_aggregator(xic, pad_mask=pad_mask, attn_mask=att)
+        xu3 = self.up_blocks[2](xu2, skip3)  # Up sampling
+        if self.return_maps:
+            maps.append(xu1)
 
         if self.encoder:
-            return out, maps
+            return xu3, maps
         else:
-            out = self.out_conv(out)
+            out = self.out_conv(xu3)
             if return_att:
                 return out, att
             if self.return_maps:
                 return out, maps
             else:
                 return out
+        # =========End new addition ===================================
+
+        # out = self.in_conv.smart_forward(input)
+        # feature_maps = [out]
+        # # SPATIAL ENCODER
+        # for i in range(self.n_stages - 1):
+        #     out = self.down_blocks[i].smart_forward(feature_maps[-1])
+        #     feature_maps.append(out)
+        # # TEMPORAL ENCODER
+        # out, att = self.temporal_encoder(
+        #     feature_maps[-1], batch_positions=batch_positions, pad_mask=pad_mask
+        # )
+        # # SPATIAL DECODER
+        # if self.return_maps:
+        #     maps = [out]
+        # for i in range(self.n_stages - 1):
+        #     skip = self.temporal_aggregator(
+        #         feature_maps[-(i + 2)], pad_mask=pad_mask, attn_mask=att
+        #     )
+        #     out = self.up_blocks[i](out, skip)
+        #     if self.return_maps:
+        #         maps.append(out)
+
+        # if self.encoder:
+        #     return out, maps
+        # else:
+        #     out = self.out_conv(out)
+        #     if return_att:
+        #         return out, att
+        #     if self.return_maps:
+        #         return out, maps
+        #     else:
+        #         return out
 
 
 class TemporallySharedBlock(nn.Module):
