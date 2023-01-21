@@ -1,6 +1,7 @@
 """A single image dataset for a specific satellite and specific month."""
 
 import os
+import pickle
 from typing import Sequence, Optional, Callable, Dict, Any
 
 from biomasstry.datasets.utils import make_temporal_tensor, load_raster
@@ -8,8 +9,47 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from torch import Tensor
 from torch.utils.data import Dataset
+
+
+class NumpySerializedList():
+    def __init__(self, lst: list):
+        def _serialize(data):
+            buffer = pickle.dumps(data, protocol=-1)
+            return np.frombuffer(buffer, dtype=np.uint8)
+
+        print(
+            "Serializing {} elements to byte tensors and concatenating them all ...".format(
+                len(lst)
+            )
+        )
+        self._lst = [_serialize(x) for x in lst]
+        self._addr = np.asarray([len(x) for x in self._lst], dtype=np.int64)
+        self._addr = np.cumsum(self._addr)
+        self._lst = np.concatenate(self._lst)
+        print("Serialized dataset takes {:.2f} MiB".format(len(self._lst) / 1024**2))
+
+    def __len__(self):
+        return len(self._addr)
+
+    def __getitem__(self, idx):
+        start_addr = 0 if idx == 0 else self._addr[idx - 1].item()
+        end_addr = self._addr[idx].item()
+        bytes = memoryview(self._lst[start_addr:end_addr])
+        return pickle.loads(bytes)
+
+
+class TorchSerializedList(NumpySerializedList):
+    def __init__(self, lst: list):
+        super().__init__(lst)
+        self._addr = torch.from_numpy(self._addr)
+        self._lst = torch.from_numpy(self._lst)
+
+    def __getitem__(self, idx):
+        start_addr = 0 if idx == 0 else self._addr[idx - 1].item()
+        end_addr = self._addr[idx].item()
+        bytes = memoryview(self._lst[start_addr:end_addr].numpy())
+        return pickle.loads(bytes)
 
 
 class TemporalSentinel2Dataset(Dataset):
@@ -73,7 +113,7 @@ class TemporalSentinel2Dataset(Dataset):
     S3_URL = "/datasets/biomassters"
     
     def __init__(self, 
-        chip_ids,
+        metadata_file: str = "",
         data_url: str = "",
         bands: Sequence[str] = [], 
         months: Sequence[str] =[],
@@ -83,7 +123,10 @@ class TemporalSentinel2Dataset(Dataset):
         """ Initialize a new instance of the Sentinel-2 Dataset.
         Args:
         """
-        self.chip_ids = np.asarray(chip_ids)
+        if metadata_file:
+            self.metadata_file = metadata_file
+        else:
+            self.metadata_file = "/notebooks/data/metadata_parquet/metadata_chipid_split.parquet"
         self.data_url = data_url
         self.train = train
         # Data URL resolution
@@ -102,19 +145,43 @@ class TemporalSentinel2Dataset(Dataset):
         else:
             self.band_indexes = np.arange(1, 11)  # All bands except CLP
         self.target_transform = target_transform
+        self._lst, self._addr = self._get_chip_ids()
+        # self.chip_ids
+        
+    def _get_chip_ids(self):
+        def _serialize(data):
+            buffer = pickle.dumps(data, protocol=-1)
+            return np.frombuffer(buffer, dtype=np.uint8)
+
+        metadata_df = pd.read_parquet(self.metadata_file)
+        if self.train:
+            chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique().astype(np.str_)
+        else:
+            chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique().astype(np.str_)
+
+        lst = [_serialize(x) for x in chip_ids]
+        addr = np.asarray([len(x) for x in lst], dtype=np.int64)
+        addr = np.cumsum(addr)
+        lst = np.concatenate(lst)
+        return torch.from_numpy(lst), torch.from_numpy(addr)
+
+    def _get_image_paths(self, chip_id):
+        return np.asarray([self.feaures_dir + f"/{chip_id}_S2_{self.month_map[m]}.tif"
+                          for m in self.months])
 
     def __len__(self):
         """Return the length of the dataset."""
-        return len(self.chip_ids)
-    
-    def _get_image_paths(self, chip_id):
-        return np.asarray([self.feaures_dir + f"/{self.chip_ids[chip_id]}_S2_{self.month_map[m]}.tif" 
-                           for m in self.months])
+        return len(self._addr)
 
     def __getitem__(self, idx):
         """Return a single (image, label) corresponding to idx."""
+        start_addr = 0 if idx == 0 else self._addr[idx - 1].item()
+        end_addr = self._addr[idx].item()
+        bytes = memoryview(self._lst[start_addr:end_addr].numpy())
+        chip_id = pickle.loads(bytes)
+
         # Input image
-        img_paths = self._get_image_paths(idx)
+        img_paths = self._get_image_paths(chip_id)
         
         # Create temporal tensor of size TxCxWxH
         timg_data = make_temporal_tensor(img_paths, self.band_indexes)
@@ -128,7 +195,7 @@ class TemporalSentinel2Dataset(Dataset):
         # Target image
         target_data = None
         if self.train:
-            target_path = self.targets_dir + f"/{self.chip_ids[idx]}_agbm.tif"
+            target_path = self.targets_dir + f"/{chip_id}_agbm.tif"
             target_data = load_raster(target_path)
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)
@@ -136,7 +203,7 @@ class TemporalSentinel2Dataset(Dataset):
         # return {'image': timg_data,
         #     'target': target_data,
         #     'chip_id': self.chip_ids[idx]}
-        return timg_data, target_data, self.chip_ids[idx]
+        return timg_data, target_data, chip_id
 
     def plot(
         self,

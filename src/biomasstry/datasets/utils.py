@@ -7,13 +7,12 @@ import numpy as np
 import rasterio
 from rasterio.io import MemoryFile
 import torch
-from torch import Tensor
 
 
 # Our rasters contain no geolocation info, so silence this warning from rasterio
 warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
 
-def load_raster(file_url: str, indexes=None) -> Tensor:
+def load_raster(file_url: str, indexes=None) -> torch.Tensor:
     """Returns the TIF image as tensor.
     file_url: specifies full path for the TIF file.
     indexes: [List[int]] specific indexes to be read. 
@@ -36,6 +35,12 @@ def load_raster(file_url: str, indexes=None) -> Tensor:
 
 def make_temporal_tensor(image_paths, band_indexes):
     # Stack temporally to create a TxCxWxH dataset
-    return torch.stack([load_raster(img_path, 
-                                         indexes=band_indexes.tolist()) 
-                             for img_path in image_paths], dim=0)
+    im0 = load_raster(image_paths[0], indexes=band_indexes.tolist())
+    im1 = load_raster(image_paths[1], indexes=band_indexes.tolist())
+    im2 = load_raster(image_paths[2], indexes=band_indexes.tolist())
+    im3 = load_raster(image_paths[3], indexes=band_indexes.tolist())
+    im4 = load_raster(image_paths[4], indexes=band_indexes.tolist())
+    
+    # return torch.stack([load_raster(img_path, indexes=band_indexes.tolist()) 
+    #                          for img_path in image_paths], dim=0)
+    return torch.stack((im0, im1, im2, im3, im4), dim=0)
