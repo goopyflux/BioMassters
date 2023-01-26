@@ -1,0 +1,48 @@
+root@n47fvylijb:/notebooks# accelerate launch notebooks/distributed_training_utae.py 
+1.12.0+cu116
+11.6
+8302
+GPU memory occupied: 107 MB.
+Args: fp16, 123, 4, 1, 10, 
+Before DataLoaders
+  time    PID  rss     pss     uss     shared    shared_file
+------  -----  ------  ------  ------  --------  -------------
+ 61239    473  723.6M  554.6M  393.6M  330.0M    330.0M
+Train samples: 6951 Val. samples: 1738
+After DataLoaders
+  time    PID  rss     pss     uss     shared    shared_file
+------  -----  ------  ------  ------  --------  -------------
+ 61239    473  756.7M  587.0M  425.4M  331.2M    331.2M
+After Model
+  time    PID  rss     pss     uss     shared    shared_file
+------  -----  ------  ------  ------  --------  -------------
+ 61239    473  762.2M  592.5M  430.8M  331.5M    331.5M
+  0%|                                                                                            | 0/10 [00:00<?, ?it/s]Epoch 1
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                                       | 0/1738 [00:00<?, ?it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61243    473  2.5G   2.4G   2.2G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 10/1738 [00:08<24:10,  1.19it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61251    473  2.7G   2.5G   2.4G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 20/1738 [00:16<22:01,  1.30it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61259    473  2.8G   2.6G   2.4G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 30/1738 [00:24<20:59,  1.36it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61267    473  2.8G   2.6G   2.5G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 40/1738 [00:31<21:10,  1.34it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61274    473  2.9G   2.7G   2.6G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 50/1738 [00:39<21:23,  1.32it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61282    473  2.9G   2.8G   2.6G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 60/1738 [00:47<21:32,  1.30it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61289    473  3.0G   2.8G   2.7G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 70/1738 [00:54<20:33,  1.35it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61297    473  3.1G   2.9G   2.7G   332.8M    332.8M
+                                                                                                                         time    PID  rss    pss    uss    shared    shared_file                              | 80/1738 [01:02<21:15,  1.30it/s]
+------  -----  -----  -----  -----  --------  -------------
+ 61305    473  3.1G   3.0G   2.8G   332.8M    332.8M
+                                                                                                                       ^
