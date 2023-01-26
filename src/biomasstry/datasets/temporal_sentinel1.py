@@ -1,10 +1,12 @@
 """A temporal image dataset for a specific satellite and months."""
 
 import os
+import pickle
 from typing import Sequence, Optional, Callable, Dict, Any
 
-from biomasstry.datasets.utils import load_raster
+from biomasstry.datasets.utils import load_raster, make_temporal_tensor
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 from torch import Tensor
@@ -70,7 +72,6 @@ class TemporalSentinel1Dataset(Dataset):
     # Setup S3 URLs and folder locations within the S3 bucket
     # S3_URL = "s3://drivendata-competition-biomassters-public-us"
     S3_URL = "/datasets/biomassters"
-    metadata_file = "/notebooks/data/metadata_parquet/features_metadata_slim.parquet"
     
     def __init__(self, 
         metadata_file: str = "",
@@ -84,13 +85,10 @@ class TemporalSentinel1Dataset(Dataset):
         """ Initialize a new instance of the Sentinel-2 Dataset.
         Args:
         """
-        if not metadata_file:
-            metadata_file = self.metadata_file
-        if not os.path.exists(metadata_file):
-            raise FileNotFoundError(f"File {metadata_file} not found! "
-                                    "Please check the path and make sure the file exists."
-                                   )
-
+        if metadata_file:
+            self.metadata_file = metadata_file
+        else:
+            self.metadata_file = "/notebooks/data/metadata_parquet/metadata_chipid_split.parquet"
         self.data_url = data_url
         self.train = train
         # Data URL resolution
@@ -103,14 +101,6 @@ class TemporalSentinel1Dataset(Dataset):
             self.feaures_dir = self.data_url + "/test_features"
             self.targets_dir = ""
 
-        if metadata_file.endswith(".parquet"):
-            metadata_df = pd.read_parquet(metadata_file)
-        elif metadata_file.endswith(".csv"):
-            metadata_df = pd.read_csv(metadata_file)
-        else:
-            raise Exception(f"Unsupported format for metadata file: {metadata_file}. "
-                  "Only CSV and Parquet format files are supported.")
-
         self.months = months if months else self.temporal_months  # list(self.month_map.keys())
         if bands:
             self.band_indexes = [self.band_map[band] for band in bands]
@@ -118,25 +108,45 @@ class TemporalSentinel1Dataset(Dataset):
             self.band_indexes = [1, 2, 3, 4]  # All bands
         self.transform = transform
         self.target_transform = target_transform
+        self._lst, self._addr = self._get_chip_ids()
         
-        if train:
-            self.chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique()
+    def _get_chip_ids(self):
+        def _serialize(data):
+            buffer = pickle.dumps(data, protocol=-1)
+            return np.frombuffer(buffer, dtype=np.uint8)
+
+        metadata_df = pd.read_parquet(self.metadata_file)
+        if self.train:
+            chip_ids = metadata_df[metadata_df.split == "train"].chip_id.unique().astype(np.str_)
         else:
-            self.chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique()
+            chip_ids = metadata_df[metadata_df.split == "test"].chip_id.unique().astype(np.str_)
+
+        lst = [_serialize(x) for x in chip_ids]
+        addr = np.asarray([len(x) for x in lst], dtype=np.int64)
+        addr = np.cumsum(addr)
+        lst = np.concatenate(lst)
+        return torch.from_numpy(lst), torch.from_numpy(addr)
+
+    def _get_image_paths(self, chip_id):
+        return np.asarray([self.feaures_dir + f"/{chip_id}_S1_{self.month_map[m]}.tif"
+                          for m in self.months])
 
     def __len__(self):
         """Return the length of the dataset."""
-        return len(self.chip_ids)
+        return len(self._addr)
 
     def __getitem__(self, idx):
         """Return a single (image, label) corresponding to idx."""
-        # Input image
-        img_paths = [self.feaures_dir + f"/{self.chip_ids[idx]}_S1_{self.month_map[m]}.tif" 
-            for m in self.months]
-        timg_data = [load_raster(img_path, indexes=self.band_indexes) for img_path in img_paths]
+        start_addr = 0 if idx == 0 else self._addr[idx - 1].item()
+        end_addr = self._addr[idx].item()
+        bytes = memoryview(self._lst[start_addr:end_addr].numpy())
+        chip_id = pickle.loads(bytes)
 
-        # Stack temporally to create a TxCxWxH dataset
-        timg_data = torch.stack(timg_data, dim=0)
+        # Input image
+        img_paths = self._get_image_paths(chip_id)
+        
+        # Create temporal tensor of size TxCxWxH
+        timg_data = make_temporal_tensor(img_paths, self.band_indexes)
 
         # TODO Update transform to work with temporal tensor.
         if self.transform is not None:
@@ -150,9 +160,10 @@ class TemporalSentinel1Dataset(Dataset):
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)
 
-        return {'image': timg_data,
-            'target': target_data,
-            'chip_id': self.chip_ids[idx]}
+        # return {'image': timg_data,
+            # 'target': target_data,
+            # 'chip_id': self.chip_ids[idx]}
+        return timg_data, target_data, chip_id
 
     def plot(
         self,
