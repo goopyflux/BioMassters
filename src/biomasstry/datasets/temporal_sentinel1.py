@@ -103,9 +103,9 @@ class TemporalSentinel1Dataset(Dataset):
 
         self.months = months if months else self.temporal_months  # list(self.month_map.keys())
         if bands:
-            self.band_indexes = [self.band_map[band] for band in bands]
+            self.band_indexes = np.asarray([self.band_map[band] for band in bands])
         else:
-            self.band_indexes = [1, 2, 3, 4]  # All bands
+            self.band_indexes = np.arange(1, 5)  # All bands
         self.transform = transform
         self.target_transform = target_transform
         self._lst, self._addr = self._get_chip_ids()
@@ -155,7 +155,7 @@ class TemporalSentinel1Dataset(Dataset):
         # Target image
         target_data = None
         if self.train:
-            target_path = self.targets_dir + f"/{self.chip_ids[idx]}_agbm.tif"
+            target_path = self.targets_dir + f"/{chip_id}_agbm.tif"
             target_data = load_raster(target_path)
             if self.target_transform is not None:
                 target_data = self.target_transform(target_data)
